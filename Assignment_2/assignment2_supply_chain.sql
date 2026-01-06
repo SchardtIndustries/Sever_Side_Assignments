@@ -1,0 +1,151 @@
+-- =========================================
+-- Assignment 2: SUPPLY_CHAIN (MySQL)
+-- DDL + DML + Updates + Cascade Delete Demo
+-- =========================================
+
+DROP DATABASE IF EXISTS SUPPLY_CHAIN;
+CREATE DATABASE SUPPLY_CHAIN;
+USE SUPPLY_CHAIN;
+
+-- -----------------------
+-- DDL
+-- -----------------------
+
+CREATE TABLE SUPPLIER (
+  SUPNR       CHAR(4)      NOT NULL,
+  SUPNAME     VARCHAR(40)  NOT NULL,
+  SUPADDRESS  VARCHAR(50),
+  SUPCITY     VARCHAR(20),
+  SUPSTATUS   SMALLINT,
+  SUPCATEGORY VARCHAR(10) DEFAULT 'SILVER',
+  PRIMARY KEY (SUPNR),
+  CONSTRAINT chk_supplier_status CHECK (SUPSTATUS >= 0 AND SUPSTATUS <= 100)
+);
+
+CREATE TABLE PRODUCT (
+  PRODNR             CHAR(6)      NOT NULL,
+  PRODNAME           VARCHAR(60)  NOT NULL,
+  PRODTYPE           VARCHAR(10),
+  AVAILABLE_QUANTITY INTEGER,
+  PRODIMAGE          BLOB,
+  PRIMARY KEY (PRODNR),
+  UNIQUE (PRODNAME),
+  CONSTRAINT chk_product_type CHECK (PRODTYPE IN ('white', 'red', 'rose', 'sparkling'))
+);
+
+
+CREATE TABLE SUPPLIES (
+  SUPNR          CHAR(4) NOT NULL,
+  PRODNR         CHAR(6) NOT NULL,
+  PURCHASE_PRICE DECIMAL(8,2),
+  DELIV_PERIOD   TIME,
+  PRIMARY KEY (SUPNR, PRODNR),
+  CONSTRAINT fk_supplies_supplier
+    FOREIGN KEY (SUPNR) REFERENCES SUPPLIER(SUPNR)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_supplies_product
+    FOREIGN KEY (PRODNR) REFERENCES PRODUCT(PRODNR)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE PURCHASE_ORDER (
+  PONR   CHAR(7) NOT NULL,
+  PODATE DATE,
+  SUPNR  CHAR(4) NOT NULL,
+  PRIMARY KEY (PONR),
+  CONSTRAINT fk_po_supplier
+    FOREIGN KEY (SUPNR) REFERENCES SUPPLIER(SUPNR)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE PO_LINE (
+  PONR     CHAR(7) NOT NULL,
+  PRODNR   CHAR(6) NOT NULL,
+  QUANTITY INTEGER,
+  PRIMARY KEY (PONR, PRODNR),
+  CONSTRAINT fk_poline_po
+    FOREIGN KEY (PONR) REFERENCES PURCHASE_ORDER(PONR)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_poline_product
+    FOREIGN KEY (PRODNR) REFERENCES PRODUCT(PRODNR)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- -----------------------
+-- DML Inserts (5+ each)
+-- -----------------------
+
+INSERT INTO SUPPLIER (SUPNR, SUPNAME, SUPADDRESS, SUPCITY, SUPSTATUS, SUPCATEGORY) VALUES
+('S001', 'Rhine Valley Imports', '12 River Rd',    'Cologne',  85, 'GOLD'),
+('S002', 'Bordeaux Cellars Ltd', '8 Rue du Vin',   'Bordeaux', 72, 'SILVER'),
+('S003', 'Tuscan Grapes Co',     '55 Via Roma',    'Florence', 64, 'SILVER'),
+('S004', 'Cava Spark Supply',    '19 Plaza Real',  'Barcelona',90, 'PLATINUM'),
+('S005', 'Napa Select Partners', '400 Oak Street', 'Napa',     55, 'SILVER');
+
+INSERT INTO PRODUCT (PRODNR, PRODNAME, PRODTYPE, AVAILABLE_QUANTITY, PRODIMAGE) VALUES
+('P00001', 'Chardonnay Reserve 2022',    'white',     120, NULL),
+('P00002', 'Cabernet Sauvignon 2021',    'red',        80, NULL),
+('P00003', 'Provence Rose 2023',         'rose',      150, NULL),
+('P00004', 'Brut Sparkling Cuvee NV',    'sparkling',  60, NULL),
+('P00005', 'Pinot Noir Single Vineyard', 'red',        45, NULL);
+
+-- DELIV_PERIOD: using hours-as-duration (e.g., 72 hours = 3 days)
+INSERT INTO SUPPLIES (SUPNR, PRODNR, PURCHASE_PRICE, DELIV_PERIOD) VALUES
+('S001', 'P00001',  9.50, '72:00:00'),
+('S002', 'P00002', 14.25, '96:00:00'),
+('S003', 'P00003',  7.80, '48:00:00'),
+('S004', 'P00004', 11.10, '72:00:00'),
+('S005', 'P00005', 16.90, '120:00:00');
+
+INSERT INTO PURCHASE_ORDER (PONR, PODATE, SUPNR) VALUES
+('PO10001', '2026-01-02', 'S001'),
+('PO10002', '2026-01-02', 'S002'),
+('PO10003', '2026-01-03', 'S003'),
+('PO10004', '2026-01-03', 'S004'),
+('PO10005', '2026-01-04', 'S005');
+
+INSERT INTO PO_LINE (PONR, PRODNR, QUANTITY) VALUES
+('PO10001', 'P00001', 30),
+('PO10002', 'P00002', 20),
+('PO10002', 'P00001', 10),
+('PO10003', 'P00003', 40),
+('PO10004', 'P00004', 25),
+('PO10005', 'P00005', 15);
+
+-- -----------------------
+-- Verification SELECTs (for screenshots)
+-- -----------------------
+SELECT * FROM SUPPLIER;
+SELECT * FROM PRODUCT;
+SELECT * FROM SUPPLIES;
+SELECT * FROM PURCHASE_ORDER;
+SELECT * FROM PO_LINE;
+
+-- -----------------------
+-- Updates (required)
+-- -----------------------
+
+UPDATE SUPPLIER
+SET SUPSTATUS = 95
+WHERE SUPNR = 'S003';
+
+UPDATE PRODUCT
+SET AVAILABLE_QUANTITY = AVAILABLE_QUANTITY + 25
+WHERE PRODNR = 'P00004';
+
+-- Screenshot these:
+SELECT SUPNR, SUPSTATUS FROM SUPPLIER WHERE SUPNR='S003';
+SELECT PRODNR, AVAILABLE_QUANTITY FROM PRODUCT WHERE PRODNR='P00004';
+
+-- -----------------------
+-- Cascade Delete Demo (required)
+-- -----------------------
+
+-- BEFORE screenshot:
+SELECT * FROM PO_LINE WHERE PONR='PO10002';
+
+DELETE FROM PURCHASE_ORDER WHERE PONR='PO10002';
+
+-- AFTER screenshots:
+SELECT * FROM PURCHASE_ORDER WHERE PONR='PO10002';
+SELECT * FROM PO_LINE WHERE PONR='PO10002';
