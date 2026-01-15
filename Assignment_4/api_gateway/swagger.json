@@ -1,0 +1,206 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Microservices API",
+    "version": "1.0.0",
+    "description": "API documentation for the microservices project (API Gateway routing, composition, and authentication)."
+  },
+  "servers": [
+    { "url": "http://localhost:3002" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "1" },
+          "name": { "type": "string", "example": "John Doe" },
+          "products": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["1", "2"]
+          }
+        },
+        "required": ["id", "name"]
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "1" },
+          "name": { "type": "string", "example": "Laptop" },
+          "description": { "type": "string", "example": "Powerful laptop for work and play" }
+        },
+        "required": ["id", "name"]
+      },
+      "AuthRequest": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string", "example": "admin" },
+          "password": { "type": "string", "example": "password" }
+        },
+        "required": ["username", "password"]
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+        },
+        "required": ["token"]
+      },
+      "ComposedUserProducts": {
+        "type": "object",
+        "properties": {
+          "user": { "$ref": "#/components/schemas/User" },
+          "products": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Product" }
+          }
+        },
+        "required": ["user", "products"]
+      },
+      "ErrorMessage": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "example": "User not found" }
+        },
+        "required": ["message"]
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/users/{id}": {
+      "get": {
+        "summary": "Get user by ID",
+        "description": "Routes to user-service and returns user information. Protected with Basic Authentication at the gateway.",
+        "security": [{ "basicAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/User" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing/invalid Basic Auth)"
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorMessage" } }
+            }
+          }
+        }
+      }
+    },
+    "/auth": {
+      "post": {
+        "summary": "Authenticate and receive JWT token",
+        "description": "Issues a JWT token for use with protected endpoints (Bearer Token).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AuthRequest" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token issued",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorMessage" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products/{id}": {
+      "get": {
+        "summary": "Get product by ID",
+        "description": "Routes to product-service and returns product information. Protected with JWT Bearer token at the gateway.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "Product ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Product" } }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing/invalid JWT)"
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorMessage" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/userProducts/{userId}": {
+      "get": {
+        "summary": "Get user + products (composition)",
+        "description": "Composes a response by calling user-service and product-service and returning a combined result.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "schema": { "type": "string" },
+            "required": true,
+            "description": "User ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful composed response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ComposedUserProducts" }
+              }
+            }
+          },
+          "500": {
+            "description": "Composition error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorMessage" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

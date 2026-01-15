@@ -3,6 +3,9 @@ const basicAuth = require("basic-auth");
 const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
 const NodeCache = require("node-cache");
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("./swagger.json");
+
 
 const app = express();
 app.use(express.json());
@@ -49,6 +52,10 @@ function jwtAuthMiddleware(req, res, next) {
     return res.sendStatus(401);
   }
 }
+
+// --- Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 
 // --- ROUTING: Users (protected with Basic Auth)
 app.get("/api/v1/users/:id", basicAuthMiddleware, async (req, res) => {
